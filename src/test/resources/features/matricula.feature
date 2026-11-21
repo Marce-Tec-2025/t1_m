@@ -1,28 +1,30 @@
-Feature: : Matricula de cursos
-  Como alumno de CIBERTEC
-  Quiero matricularme en mis cursos
-  Para llevarlos en el ciclo
+Feature: Matrícula del alumno
 
-  Scenario: Matricula valida con descuento por promedio y anulacion
-    Given  que Ana consulta la API de matricula
-    When se matricula con el codigo "i202610001" en el curso "PS3511"
-    Then el codigo de respuesta es 201
-    And el monto de la matricula es 288,0
-    And el estado de la matricula es "REGISTRADA"
-    When anula es matricula
-    Then el codigo de respuesta es 200
-    And el estado de la matricula es "ANULADA"
+  Background:
+    Given que el alumno "i202610002" inicia sesión con clave "Cibertec2026"
 
-  Scenario Outline: Matricula rechazada por <motivo>
-    Given  que Ana consulta la API de matricula
-    When se matricula por codigo "<alumno>" en el curso "<curso>"
-    Then el codigo de respuesta es <status>
-    And el codigo de error es "<codigo>"
-    Examples:
-      | motivo             | alumno     | curso  | status | codigo               |
-      | deuda              | i202610004 | PS5511 | 422    | ALUMNO_CON_DEUDA     |
-      | duplicada          | i202610003 | IA5513 | 409    | MATRICULA_DUPLICADA  |
-      | falta de vacantes  | i202610001 | IA5513 | 409    | SIN_VACANTES         |
-      | cruce de horario   | i202610002 | QA5517 | 409    | CRUCE_HORARIO        |
-      | límite de créditos | i202610005 | TS5514 | 422    | LIMITE_CREDITOS      |
-      | alumno inexistente | i999999999 | PS5511 | 404    | ALUMNO_NO_ENCONTRADO |
+  Scenario: Cotizar el curso
+    When cotiza el curso "PI5620" para el alumno "i202610002"
+    Then el código de respuesta es 200
+    And el total de la cotización es 648.0
+    And la respuesta cumple el esquema "cotizacion.json"
+
+  Scenario: Matricularse y pagar el curso
+    When se matricula en el curso "PI5620" para el alumno "i202610002"
+    Then el código de respuesta es 201
+    And el estado de la matrícula es "REGISTRADA"
+    And el monto de la matrícula es 648.0
+    And la respuesta cumple el esquema "matricula.json"
+    And guarda el id de la matrícula
+    When paga la matrícula sin enviar cuerpo
+    Then el código de respuesta es 200
+    And el estado de la matrícula es "PAGADA"
+    And la fecha de pago no es nula
+    When consulta la lista de pagos
+    Then el código de respuesta es 200
+    And existe el pago de la matrícula con método de pago por defecto y operación "OP-000000"
+
+  Scenario: Pagar otra vez la misma matrícula
+    When intenta pagar nuevamente la misma matrícula sin enviar cuerpo
+    Then el código de respuesta es 409
+    And la respuesta de error cumple el esquema "error.json"
